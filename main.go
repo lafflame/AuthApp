@@ -5,7 +5,9 @@ import (
 	"authApp/middleware"
 	"authApp/models"
 	"log"
+	"time"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"gorm.io/driver/postgres"
@@ -31,6 +33,21 @@ func main() {
 	// Инициализация контроллеров
 	authController := controllers.NewAuthController(db)
 
+	// Настройка CORS
+	r.Use(cors.New(cors.Config{
+		AllowOrigins: []string{
+			"http://localhost:3000", // Добавьте явно ваш фронтенд-адрес
+			"http://127.0.0.1:3000", // Без слеша в конце
+			"http://localhost",
+			"http://127.0.0.1",
+		},
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
+		ExposeHeaders:    []string{"Content-Length"},
+		AllowCredentials: true,
+		MaxAge:           12 * time.Hour,
+	}))
+
 	// Маршруты
 	api := r.Group("/api")
 	{
@@ -47,6 +64,21 @@ func main() {
 			protected.GET("/test", func(c *gin.Context) {
 				userID := c.MustGet("user_id").(uuid.UUID)
 				c.JSON(200, gin.H{"message": "Access granted", "user_id": userID})
+			})
+
+			// Защищенный роут для проверки токена
+			protected.GET("/check", func(c *gin.Context) {
+				c.JSON(200, gin.H{"status": "valid"})
+			})
+
+			// Защищенный роут для данных
+			protected.GET("/data", func(c *gin.Context) {
+				userID := c.MustGet("user_id").(uuid.UUID)
+				c.JSON(200, gin.H{
+					"message": "Secret data",
+					"user_id": userID,
+					"data":    []string{"item1", "item2", "item3"},
+				})
 			})
 		}
 	}

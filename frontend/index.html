@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Auth App</title>
+    <style>
+        .container { max-width: 400px; margin: 50px auto; }
+        form { display: flex; flex-direction: column; gap: 10px; }
+        input, button { padding: 8px; }
+        .message { margin-top: 20px; color: green; }
+        .error { color: red; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Форма регистрации -->
+        <h2>Register</h2>
+        <form id="registerForm">
+            <input type="text" id="regUsername" placeholder="Username" required>
+            <input type="email" id="regEmail" placeholder="Email" required>
+            <input type="password" id="regPassword" placeholder="Password" required>
+            <button type="submit">Register</button>
+        </form>
+        <div id="regMessage" class="message"></div>
+
+        <!-- Форма входа -->
+        <h2>Login</h2>
+        <form id="loginForm">
+            <input type="email" id="loginEmail" placeholder="Email" required>
+            <input type="password" id="loginPassword" placeholder="Password" required>
+            <button type="submit">Login</button>
+        </form>
+        <div id="loginMessage" class="message"></div>
+
+        <!-- Защищенный контент -->
+        <div id="protectedContent" style="display: none;">
+            <h2>Welcome, <span id="userEmail"></span>!</h2>
+            <button id="logoutBtn">Logout</button>
+            <div id="dataContent"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:8080/api';
+        let accessToken = localStorage.getItem('accessToken');
+
+        // Регистрация
+        document.getElementById('registerForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const response = await fetch(`${API_URL}/auth/register`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    username: document.getElementById('regUsername').value,
+                    email: document.getElementById('regEmail').value,
+                    password: document.getElementById('regPassword').value
+                })
+            });
+            const result = await response.json();
+            document.getElementById('regMessage').textContent = result.message || result.error;
+            document.getElementById('regMessage').className = response.ok ? 'message' : 'message error';
+        });
+
+        // Вход
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const response = await fetch(`${API_URL}/auth/login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    email: document.getElementById('loginEmail').value,
+                    password: document.getElementById('loginPassword').value
+                })
+            });
+            const result = await response.json();
+            
+            if (response.ok) {
+                accessToken = result.access_token;
+                localStorage.setItem('accessToken', accessToken);
+                showProtectedContent(result.email);
+            } else {
+                document.getElementById('loginMessage').textContent = result.error;
+                document.getElementById('loginMessage').className = 'message error';
+            }
+        });
+
+        // Выход
+        document.getElementById('logoutBtn').addEventListener('click', () => {
+            localStorage.removeItem('accessToken');
+            accessToken = null;
+            document.getElementById('protectedContent').style.display = 'none';
+            document.getElementById('loginForm').reset();
+        });
+
+        // Показать защищенный контент
+        function showProtectedContent(email) {
+            document.getElementById('userEmail').textContent = email;
+            document.getElementById('protectedContent').style.display = 'block';
+            document.getElementById('loginMessage').textContent = 'Login successful!';
+            document.getElementById('loginMessage').className = 'message';
+            fetchProtectedData();
+        }
+
+        // Запрос защищенных данных
+        async function fetchProtectedData() {
+            const response = await fetch(`${API_URL}/protected/data`, {
+                headers: { 'Authorization': `Bearer ${accessToken}` }
+            });
+            if (response.ok) {
+                const data = await response.json();
+                document.getElementById('dataContent').textContent = JSON.stringify(data, null, 2);
+            }
+        }
+
+        // Проверить токен при загрузке
+        if (accessToken) {
+            fetch(`${API_URL}/protected/check`, {
+                headers: { 'Authorization': `Bearer ${accessToken}` }
+            })
+            .then(response => response.ok ? showProtectedContent('user@example.com') : localStorage.removeItem('accessToken'));
+        }
+    </script>
+</body>
+</html>
