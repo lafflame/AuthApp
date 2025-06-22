@@ -26,9 +26,15 @@ cd auth-app
 ```
 
 2. Настройте базу данных:
-```bash
-createdb auth_app
-psql -d auth_app -c "CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\""
+```sql
+CREATE TABLE users (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    username VARCHAR(20) NOT NULL UNIQUE,
+    email VARCHAR(30) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL,
+    role VARCHAR(15) NOT NULL DEFAULT 'user',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
 ```
 
 3. Настройте переменные окружения в файле main.go:
